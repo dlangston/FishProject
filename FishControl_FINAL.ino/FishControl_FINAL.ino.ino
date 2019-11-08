@@ -1,7 +1,7 @@
-/* .Fish rises
-    Fish waits a random time between 20 and 30 minutes
+/*  Fish rises
+    Fish waits a random time between ? and ? minutes
     Fish sinks
-    Fish waits for a random time between 20 and 30 minutes
+    Fish waits for a random time between ? and ? minutes
     Working
 
   Disaster switch is wired with ground and a digitalPin
@@ -13,7 +13,7 @@
 const int dirPin = 11;  // direction motor
 const int pwmPin = 6;  // pwm pin for motor
 const int currentSensPin = A0;  // current sensor signal pin
-const int disasterPin = 2;
+const int disasterPin = 2; // runaway fish pin
 
 
 unsigned long startSinkTime;
@@ -21,24 +21,34 @@ unsigned long startWaitBottomTime;
 unsigned long startRiseTime;
 unsigned long startWaitTopTime;
 
-// motor speeds
+// Motor speeds - Adjust this for how fast the fish rises and sinks(PWM)
 int SINK_SPEED = 50;
 int RISE_SPEED = 50;
-// timing of states - you neeed to change these
-const unsigned long SINK_TIME = 55000;
-const unsigned long ASCEND_TIME = 35000;
 
-const unsigned long WAIT_BOTTOM_TIME_MIN = 5000;
-const unsigned long WAIT_BOTTOM_TIME_MAX = 10000;
-const unsigned long WAIT_TOP_TIME_MIN = 5000;
-const unsigned long WAIT_TOP_TIME_MAX = 10000;
+// Timing of states - adjust these for the how long it takes for the fish to rise and sink
+// *NOTE: ASCEND_TIME is a backup to the current sensor
+const unsigned long SINK_TIME = 120000;
+const unsigned long ASCEND_TIME = 70000;
 
-const int lockedFishADC = 275;  // change this to empirical value
+// MIN and MAX times for random waits
+// EXAMPLE:   
+// A minimume of 5000 = 5 seconds and a maximue of 10000 = 10 seconds
+// This means the time will be anywere between 5 secons and 10 secons
+const unsigned long WAIT_BOTTOM_TIME_MIN = 60000; 
+const unsigned long WAIT_BOTTOM_TIME_MAX = 61000;
+const unsigned long WAIT_TOP_TIME_MIN = 180000;
+const unsigned long WAIT_TOP_TIME_MAX = 181000;
 
-// motor directions - change these if it goes the wrong way at startup
+// Empirical curent value
+const int lockedFishADC = 550;  // Adjust this value to stop the sink_fish function
+
+// Motor directions - Swap these if it goes the wrong way at startup - or you can reverse the motor wires
 const int SINK = 0;
 const int RISE = 1;
 
+///////////////////// NOTHING TO SEE HERE //////////////////////
+//////// No adjustments should be made behond this point /////// 
+////////////////////////////////////////////////////////////////
 int state;
 int currentADC; // current sensor reading
 
@@ -61,7 +71,8 @@ void setup() {
 void loop() {
 
   readCurrentSensor();
-  checkDistasterSwitch();  // comment in to add disaster sensor
+  // Disaster switch to stop program 
+//  checkDisasterSwitch();  // uncomment to add disaster sensor
 
   switch (state)
   {
@@ -105,7 +116,7 @@ void sink_fish() {
 
   }
 
-  if (millis() - startRiseTime > ASCEND_TIME) {
+  if (millis() - startRiseTime > SINK_TIME) {
     // time's up - all done
     init = 0;
     state = WAIT_ON_BOTTOM;
@@ -139,19 +150,19 @@ void raise_fish() {
 
 void wait_on_bottom() {
   int static init = 0;
-  unsigned long static topTime;
+  unsigned long static bottomTime;
 
   if (!init) {
-    startWaitTopTime = millis(); // time that ascend start - make sure this happens only once
+    startWaitBottomTime = millis(); // time that ascend start - make sure this happens only once
     init = 1;
-    topTime = random (WAIT_TOP_TIME_MIN, WAIT_TOP_TIME_MAX);
+    bottomTime = random ( WAIT_BOTTOM_TIME_MIN,  WAIT_BOTTOM_TIME_MAX);
     Serial.print("wait on bottom\t");
-    Serial.println(topTime);
+    Serial.println(bottomTime);
     digitalWrite(dirPin, RISE);
     analogWrite(pwmPin, 0);
   }
 
-  if (millis() - startWaitTopTime > topTime) {
+  if (millis() - startWaitBottomTime > bottomTime) {
     // time's up - all done
     init = 0;
     state = ASCENDING;
@@ -197,7 +208,7 @@ void readCurrentSensor() {
   }
 }
 
-void checkDistasterSwitch() {
+void checkDisasterSwitch() {
   if (!digitalRead(disasterPin)) {  // wire for normally open switch
     analogWrite(pwmPin, 0);
     while (1) {
